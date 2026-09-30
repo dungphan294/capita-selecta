@@ -1,0 +1,7 @@
+build/
+
+# Editor / tooling caches
+.cache/
+.DS_Store
+
+!.vscode/*

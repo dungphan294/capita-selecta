@@ -82,7 +82,7 @@ Li-Fi is not positioned as a Wi-Fi replacement — its need for a clear light pa
 ## Key Terms
 
 | Term | Meaning |
-|---|---|
+| --- | --- |
 | Li-Fi | Sends data through light using a LED (transmitter) and photodiode (receiver) |
 | Wi-Fi | Wireless method sending data via radio waves, commonly used for internet access |
 | BLE | Bluetooth Low Energy — short-range, low-power radio communication |

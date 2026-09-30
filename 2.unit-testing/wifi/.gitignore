@@ -1,0 +1,10 @@
+build/
+
+# Local secrets — never commit
+wifi_secrets.cmake
+
+# Editor / tooling caches
+.cache/
+.DS_Store
+
+!.vscode/*
