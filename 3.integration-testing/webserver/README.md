@@ -2,8 +2,13 @@
 
 An HTTP server running on the board itself. Joins a WiFi network, listens on
 port 80, and serves a status page showing the RP2350's on-die temperature,
-uptime, and how many requests it has handled. The page refreshes every 5
-seconds.
+uptime, and how many requests it has handled.
+
+The page also **scans for nearby networks and lets you join one from the
+browser**. The choice is written to flash, so it survives a power cycle. If
+there is nothing stored and the compiled-in network cannot be joined, the board
+hosts **its own access point** and serves the same page there as a captive
+portal — so a board that cannot reach any network is still reachable.
 
 No cloud, no broker, no host PC — the board is the web server.
 
@@ -11,6 +16,12 @@ Built on macOS with VS Code, the Raspberry Pi Pico extension, and a Raspberry Pi
 Debug Probe.
 
 ## Result
+
+> The screenshot and the measurements below are from the original version,
+> which generated one HTML page per request. The page is now a static file
+> served from flash with the live values arriving as JSON, so none of these
+> figures match any more. The reasoning about `Content-Length` still holds; the
+> numbers and the screenshot want recapturing.
 
 ![The status page served by the Pico 2 W](docs/images/browser-status-page.png)
 
@@ -44,7 +55,7 @@ WiFi              CYW43439
 ```
 
 And the counter read straight off the chip afterwards, having climbed further
-from the page's own 5-second auto-refresh:
+over a few reloads:
 
 ```
 (gdb) print request_count
@@ -60,8 +71,8 @@ Connected. IP address: 172.20.10.11
 HTTP server listening on http://172.20.10.11/
 Open that address in a browser on the same network.
 
-Request 1 -> 1187 bytes
-Request 2 -> 1187 bytes
+GET / -> 1187 bytes
+GET / -> 1187 bytes
 ```
 
 ## Seeing it work
@@ -101,6 +112,158 @@ curl -v http://<pico-ip>/
 This is the better option for development — it lets you test with `curl`,
 browser dev tools, and load-testing tools.
 
+### Option C — the board's own access point
+
+Needs no credentials at all. With nothing in `wifi_secrets.cmake` and nothing
+stored in flash, the board comes up as its own access point:
+
+```
+No stored network and no compiled-in default.
+Starting setup access point 'pico-setup' (password 'picosetup')
+Join 'pico-setup' and open http://192.168.4.1/
+```
+
+Join `pico-setup` from a phone or laptop and the captive-portal sheet opens on
+its own. Pick a network, enter the password, submit — the board joins it, saves
+it, and comes up on that network on every boot after that.
+
+## Changing networks from the browser
+
+| Route | Does |
+|---|---|
+| `GET /` | `index.html`, straight out of flash |
+| `GET /app.css`, `/app.js` | any file embedded from `web/` |
+| `GET /api/status` | JSON: mode, network, IP, temperature, uptime, requests |
+| `GET /api/networks` | JSON: the last completed scan |
+| `POST /api/scan` | queues a scan, `204` |
+| `POST /connect` | `ssid` + `other` + `pass` — joins, and saves on success |
+| `POST /forget` | erases the stored network and restarts into setup mode |
+
+The page is static and cached; everything live arrives as JSON and is polled
+every 5 s by `app.js`. The forms are ordinary `POST`s, so they still work with
+JavaScript blocked — `app.js` only intercepts them to stay on the page.
+
+In access-point mode every other path also serves the page. That is what makes
+the captive-portal sheet appear: the board's DNS answers every query with
+`192.168.4.1`, so whatever the phone probes on joining lands here.
+
+### Web assets live in flash, and are never copied
+
+`web/` holds real `.html`, `.css` and `.js` files. At build time
+`tools/embed_assets.py` gzips each one and emits `assets.c` — a `const unsigned
+char[]` per file plus a lookup table:
+
+```
+embed_assets: 3 file(s), 15,291 B -> 5,384 B in flash (9,907 B saved)
+  /app.css         5,934 B ->   1,901 B  gzip
+  /app.js          6,799 B ->   2,417 B  gzip
+  /index.html      2,558 B ->   1,066 B  gzip
+```
+
+`const` puts them in `.rodata`, and flash is memory-mapped at `XIP_BASE`, so
+the bytes can go to lwIP **without** `TCP_WRITE_FLAG_COPY`:
+
+```c
+flags = c->body_in_flash ? 0 : TCP_WRITE_FLAG_COPY;
+tcp_write(pcb, src, chunk, flags);
+```
+
+With the flag, lwIP copies the body into pbufs — RAM proportional to the file.
+Without it, lwIP keeps a pointer into flash until the data is acknowledged,
+which is safe precisely because flash never moves. A 200 KB asset would cost
+the same RAM as a 200-byte one.
+
+There is one interaction to respect: `flash_range_program()` disables XIP while
+it runs, so a zero-copy send **during** a credential write would read garbage.
+The 1.2 s delay before any queued action exists partly for this reason — the
+response is acknowledged, and its pbufs released, before flash is touched.
+
+Files are served with an `ETag` (a CRC32 of the *uncompressed* bytes, so it is
+stable whether or not compression won) and `Cache-Control: no-cache`, which
+means "revalidate before use" rather than "do not store". The browser comes
+back with `If-None-Match` and normally gets a 100-byte `304` instead of the
+file. That is the right trade for a dev board: reflash and the page updates,
+with no stale-cache confusion.
+
+Adding a file is just dropping it in `web/` — CMake globs with
+`CONFIGURE_DEPENDS` and regenerates.
+
+### Budgets
+
+Measured from the build, not the datasheet:
+
+| | Used | Free |
+|---|---|---|
+| **Flash** (4 MB) | 389 KB image + 4 KB credential sector | **~3.6 MB** |
+| **SRAM** (520 KB) | ~57 KB static | ~456 KB heap + stack |
+
+Flash is not the constraint and will not become one — the whole UI is 5.4 KB
+compressed. The things that actually bind:
+
+**Core 0's stack is 2 KB** (`__StackBottom` 0x20081800 to `__StackTop`
+0x20082000), and these callbacks run in lwIP's background interrupt on it.
+Nothing large may be a local. Every buffer lives in the heap-allocated
+`http_conn_t`, which is why responses are assembled into `c->dyn` rather than
+into a local array.
+
+**Per-connection RAM** is `http_conn_t`, about 5.4 KB — a 1 KB request buffer,
+a 4 KB buffer for generated bodies, and the header. Four connections in the
+backlog is ~21.6 KB of heap. Static assets add nothing to this because they are
+never copied.
+
+**`MEMP_NUM_TCP_PCB`** matters now. A browser opens up to 6 parallel
+connections to one host and the page pulls three files, so lwIP's default of 5
+would stall; it is 12 in `lwipopts.h`.
+
+### Scanning is asynchronous
+
+`cyw43_wifi_scan()` hands back results on a callback over two or three seconds.
+An HTTP handler cannot wait for that, so `/scan` only sets a flag — the main
+loop starts the scan, `wifi_scan_poll()` latches completion, and the finished
+list is cached for the next page load. Reload once and the networks are there.
+
+Scanning while hosting the access point works, but the radio has to leave its
+own channel to do it, so a client may see a brief stall.
+
+### Nothing touches the radio from an interrupt
+
+With `pico_cyw43_arch_lwip_threadsafe_background`, the HTTP callbacks run in
+lwIP's background interrupt. Joining a network blocks for up to 20 seconds and
+writing flash disables interrupts outright — neither belongs there. So the
+handlers only queue work through `app.h`:
+
+```c
+void app_request_scan(void);
+void app_request_connect(const char *ssid, const char *pass);
+void app_request_forget(void);
+```
+
+and `main()` carries it out. Queued actions also wait 1.2 s before running, so
+the response that triggered them is on the wire before the network it arrived
+over disappears.
+
+### Credentials in flash
+
+The last sector of flash — `PICO_FLASH_SIZE_BYTES - FLASH_SECTOR_SIZE`, so
+`0x3FF000` on a 4 MB board — holds a magic number, a version, the SSID, the
+password and a CRC32. The image is about 372 KB and grows from the bottom, so
+there is no danger of collision.
+
+`flash_range_erase()` and `flash_range_program()` run with interrupts disabled,
+which stalls the background interrupt servicing lwIP for a few tens of
+milliseconds. That is why the write happens after the HTTP response is fully
+acknowledged, never during one.
+
+A bad CRC, an unterminated string or an empty SSID all read as "nothing
+stored", so a half-finished write falls back to the compiled-in network rather
+than bricking the board into an address you cannot reach.
+
+### If a join fails
+
+The board re-enables the setup access point and puts the reason on the page.
+There is no state in which it is both unreachable and unable to be told where
+to go.
+
 ## How it works
 
 lwIP's **raw TCP API**, not sockets. There is no operating system and no thread
@@ -136,6 +299,12 @@ Leaking them exhausts `PBUF_POOL_SIZE` and the server dies after a few requests.
 discards unacknowledged data, and the browser gets a truncated page. Wait until
 `sent >= len`.
 
+**Send in chunks bounded by `tcp_sndbuf()`.** A response is a header in RAM
+followed by a body in either RAM or flash, and `send_more()` walks the two in
+order, writing at most what the send buffer currently has room for and
+resuming from `http_sent` as space frees up. A single `tcp_write` of the whole
+thing would fail with `ERR_MEM` on anything larger than `TCP_SND_BUF`.
+
 The request itself is never parsed — any request gets the same page. That is
 deliberate: it keeps the example to one job. Parsing the path is the natural
 next step.
@@ -155,12 +324,36 @@ so reloading the page shows the chip actually warming and cooling.
 
 ## Setup
 
+### Files
+
+| File | Holds |
+|---|---|
+| `webserver.c` | `main()`, the boot/fallback state machine, the queued actions |
+| `http_server.c` | request parsing, routes, the pages |
+| `wifi_scan.c` | the asynchronous scan and its result cache |
+| `wifi_store.c` | the flash-backed credential record |
+| `dhcpserver.c` | hands addresses to clients of the setup access point |
+| `dnsserver.c` | answers every A query with `192.168.4.1` for the portal |
+| `app.h` | the only thing the HTTP layer knows about the rest |
+| `web/` | the actual `index.html`, `app.css`, `app.js` |
+| `tools/embed_assets.py` | gzips `web/` into `assets.c` at build time |
+
+`assets.c` and `assets.h` are generated into
+`build/generated/web_assets/` — not checked in, and not edited by hand.
+
+The DHCP server and the DNS responder are written here against lwIP's raw UDP
+API rather than pulled in from `pico-examples`, so the project has no source
+outside this directory.
+
 ### CMakeLists.txt
 
 ```cmake
 target_link_libraries(webserver
     pico_stdlib
-    hardware_adc
+    hardware_adc                                 # on-die temperature sensor
+    hardware_flash                               # stored credentials
+    hardware_sync                                # interrupt lockout around flash writes
+    hardware_watchdog                            # restart after "forget network"
     pico_cyw43_arch_lwip_threadsafe_background   # WiFi + lwIP on a background IRQ
 )
 ```
@@ -175,9 +368,15 @@ server would never respond.
 Required — lwIP ships no defaults. Copied from the `wifi` project; `LWIP_TCP`,
 `LWIP_DHCP` and the `TCP_*` buffer sizes are what matter here.
 
+Access-point mode adds two UDP listeners on top of the station DHCP client, so
+`MEMP_NUM_UDP_PCB` goes to 8 and `MEM_SIZE` to 8000. `MEMP_NUM_TCP_PCB` goes to
+12 for the parallel asset fetches — see **Budgets**.
+
 ### Credentials
 
-Same gitignored pattern as the `wifi` project:
+Same gitignored pattern as the `wifi` project, but now entirely optional — with
+no secrets file the board comes up in setup mode and you provision it from the
+browser:
 
 ```cmake
 include(${CMAKE_CURRENT_LIST_DIR}/wifi_secrets.cmake OPTIONAL)
@@ -187,10 +386,18 @@ target_compile_definitions(webserver PRIVATE
 )
 ```
 
+The compiled-in network is the fallback, not the source of truth. Boot order is
+**stored credentials → compiled-in `WIFI_SSID` → setup access point**, so once
+you have joined a network from the browser, that is what the board uses.
+
 ## Build and flash
 
+The asset step needs Python 3 on `PATH`; CMake finds it with
+`find_package(Python3)` and nothing else is required — `gzip` and `zlib` are in
+the standard library.
+
 ```bash
-cd /2.integration-testing/webserver
+cd 3.integration-testing/webserver
 
 ~/.pico-sdk/cmake/v4.3.4/bin/cmake -B build -G Ninja \
   -DCMAKE_BUILD_TYPE=Debug -DPICO_BOARD=pico2_w -DPICO_PLATFORM=rp2350-arm-s .
@@ -214,6 +421,18 @@ cd /2.integration-testing/webserver
 | Page loads once, then never again | pbufs leaked, or the connection closed before data was ACKed |
 | Page is truncated | closed in `http_recv` instead of `http_sent` |
 | `undefined reference to tcp_new_ip_type` | wrong cyw43 arch library — needs an `_lwip_` variant |
+| Network list is empty | no scan has run yet — follow the Scan link and reload once |
+| Join from the browser never completes | 5 GHz or WPA2-Enterprise; the CYW43439 does neither |
+| Board forgets the network on reboot | flash write failed — the page says so when it happens |
+| Stuck on a network you cannot reach | hold the reasoning in reverse: the board is fine, it just is not where you are. `POST /forget` from that network, or reflash |
+| `pico-setup` does not appear | the AP needs a password of at least 8 characters for WPA2 |
+
+| Page loads but stays on `···` and the dot is grey | `/api/status` is failing — check the console for the request arriving |
+| Page is unstyled, or the console shows a failed asset | asset missing from `web/`, or `MEMP_NUM_TCP_PCB` too low for the parallel fetches |
+| Edited `web/` but nothing changed | the browser revalidates with `If-None-Match`; a changed file gets a new ETag, so force-reload if you edited mid-request |
+| Hard fault or silent reboot on the first request | something large became a stack local — core 0's stack is 2 KB, see **Budgets** |
+
+Two blinks of the onboard LED means setup mode; one means it is joined.
 
 Check what the board thinks its address is, without the console:
 
@@ -228,9 +447,13 @@ address is little-endian, so `0x0b0a14ac` is `172.20.10.11`.
 
 ## Next steps
 
-- **Parse the request path** and serve more than one page.
-- **Add a JSON endpoint** (`/api/temp`) so other programs can poll the board.
-- **Control an LED or GPIO** from a link or form — the classic IoT demo.
-- **Serve from flash** with lwIP's `httpd` and `makefsdata` for real static
-  files.
-- **Add mDNS** so it answers to `pico.local` instead of a bare IP.
+Routing, JSON endpoints and flash-resident static files are all in, so what is
+left:
+
+- **Control an LED or GPIO** from the page — the classic IoT demo.
+- **Add mDNS** so it answers to `pico.local` instead of a bare IP, which would
+  also solve "the address changed after it joined".
+- **A chart of the temperature over time**, now that there is somewhere sane to
+  put the JavaScript.
+- **A real filesystem** (littlefs in the spare 3.6 MB) if assets ever want to
+  be uploaded at runtime rather than baked in.

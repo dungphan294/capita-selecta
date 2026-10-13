@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>Pico 2 W</title>
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+
+<main class="shell">
+
+  <header class="head">
+    <h1>Raspberry Pi Pico 2 W</h1>
+    <p class="muted">RP2350 &middot; served from the board itself</p>
+  </header>
+
+  <!-- Filled by app.js; hidden until there is something to say. -->
+  <div id="banner" class="banner" hidden></div>
+
+  <div class="grid">
+
+    <section class="card hero">
+      <div class="temp"><span id="temp">&middot;&middot;&middot;</span><small>&deg;C</small></div>
+      <p class="muted">on-die temperature</p>
+      <dl class="stats">
+        <dt>Mode</dt>          <dd id="mode">&mdash;</dd>
+        <dt>Network</dt>       <dd id="network">&mdash;</dd>
+        <dt>IP address</dt>    <dd id="ip">&mdash;</dd>
+        <dt>Uptime</dt>        <dd id="uptime">&mdash;</dd>
+        <dt>Requests</dt>      <dd id="requests">&mdash;</dd>
+        <dt>Chip</dt>          <dd>RP2350 (Cortex-M33)</dd>
+      </dl>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>Wi-Fi</h2>
+        <button id="scan" class="ghost" type="button">Scan</button>
+      </div>
+
+      <ul id="networks" class="nets">
+        <li class="empty">No scan yet &mdash; press Scan.</li>
+      </ul>
+
+      <form id="join" class="join" method="POST" action="/connect">
+        <label for="ssid">Network</label>
+        <select id="ssid" name="ssid">
+          <option value="">(scan to list networks)</option>
+        </select>
+
+        <label for="other">Or type a name <span class="muted">&mdash; for hidden networks, wins if filled</span></label>
+        <input id="other" name="other" maxlength="32" autocapitalize="off" autocorrect="off" spellcheck="false">
+
+        <label for="pass">Password <span class="muted">&mdash; leave empty if open</span></label>
+        <input id="pass" name="pass" type="password" maxlength="64" autocomplete="off">
+
+        <button class="primary" type="submit">Join network</button>
+      </form>
+
+      <form id="forget" class="forget" method="POST" action="/forget" hidden>
+        <button class="danger" type="submit">Forget stored network and restart</button>
+      </form>
+    </section>
+
+  </div>
+
+  <footer class="muted foot">
+    <span id="live" class="dot" title="polling"></span>
+    Status refreshes every 5&nbsp;s.
+  </footer>
+
+</main>
+
+<script src="/app.js"></script>
+</body>
+</html>

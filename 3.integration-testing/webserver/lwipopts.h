@@ -10,10 +10,18 @@
 
 #define MEM_LIBC_MALLOC             0
 #define MEM_ALIGNMENT               4
-#define MEM_SIZE                    4000
+#define MEM_SIZE                    8000
 #define MEMP_NUM_TCP_SEG            32
 #define MEMP_NUM_ARP_QUEUE          10
 #define PBUF_POOL_SIZE              24
+
+// AP mode adds a DHCP server and a captive DNS responder on top of the STA
+// DHCP client, so the default of 4 UDP PCBs is no longer comfortable.
+#define MEMP_NUM_UDP_PCB            8
+
+// A browser opens up to 6 parallel connections to one host, and the page now
+// pulls index.html, app.css and app.js. lwIP's default of 5 would stall.
+#define MEMP_NUM_TCP_PCB            12
 
 #define LWIP_ARP                    1
 #define LWIP_ETHERNET               1
