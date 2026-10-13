@@ -194,11 +194,11 @@ Measured from the build, not the datasheet:
 
 | | Used | Free |
 |---|---|---|
-| **Flash** (4 MB) | 389 KB image + 4 KB credential sector | **~3.6 MB** |
+| **Flash** (4 MB) | 336 KB image + 4 KB credentials + 12 KB reserved | **~3.66 MB** |
 | **SRAM** (520 KB) | ~57 KB static | ~456 KB heap + stack |
 
 Flash is not the constraint and will not become one — the whole UI is 5.4 KB
-compressed. The things that actually bind:
+compressed, and the image is 336 KB after dropping `sscanf` (below). The things that actually bind:
 
 **Core 0's stack is 2 KB** (`__StackBottom` 0x20081800 to `__StackTop`
 0x20082000), and these callbacks run in lwIP's background interrupt on it.
@@ -214,6 +214,11 @@ never copied.
 **`MEMP_NUM_TCP_PCB`** matters now. A browser opens up to 6 parallel
 connections to one host and the page pulls three files, so lwIP's default of 5
 would stall; it is 12 in `lwipopts.h`.
+
+**`sscanf` is not used to parse the request line.** `sscanf("%7s %159s")` links
+newlib's `__ssvfscanf_r`, `_strtod_l` and its float tables — **49,364 bytes**
+of flash, measured by removing it. `split_request_line()` does the same job in
+a dozen lines, and the image dropped from 389,552 to 340,188 bytes.
 
 ### Scanning is asynchronous
 
@@ -244,10 +249,39 @@ over disappears.
 
 ### Credentials in flash
 
-The last sector of flash — `PICO_FLASH_SIZE_BYTES - FLASH_SECTOR_SIZE`, so
-`0x3FF000` on a 4 MB board — holds a magic number, a version, the SSID, the
-password and a CRC32. The image is about 372 KB and grows from the bottom, so
-there is no danger of collision.
+The **fourth sector from the end** — `PICO_FLASH_SIZE_BYTES - 4 *
+FLASH_SECTOR_SIZE`, so `0x3FC000` on a 4 MB board — holds a magic number, a
+version, the SSID, the password and a CRC32.
+
+| Offset | Size | Holds |
+|---|---|---|
+| `0x000000` – `0x052188` | 336,264 B | program image (8.0% of flash) |
+| `0x052188` – `0x3FC000` | 3,841,656 B | free |
+| `0x3FC000` – `0x3FD000` | 4 KB | **these credentials** |
+| `0x3FD000` – `0x3FF000` | 8 KB | reserved for a BTstack link-key bank |
+| `0x3FF000` – `0x400000` | 4 KB | reserved — RP2350 E10 errata workaround |
+
+Not the last sector, which is where this used to be and which was a latent
+bug. The RP2350 E10 errata workaround wants the final sector free, and the
+SDK's own BTstack flash bank skips it whenever `PICO_RP2350_A2_SUPPORTED` is
+set — which `pico2_w.h` sets by default. The old offset looked right and was
+quietly standing on reserved ground.
+
+The two sectors below it are left clear for BTstack's link-key store. This
+project does not link `pico_btstack_flash_bank` today, but reserving the space
+costs nothing and means adding Bluetooth later cannot silently overwrite
+settings. The `setup_portal` project uses the same offset for the same reasons.
+
+Two guards keep it honest: `_Static_assert`s that the sector is aligned and
+clear of the top three, and a runtime check of `__flash_binary_end` that
+refuses to touch flash at all if the image ever grows far enough to reach the
+store.
+
+**Moving the offset orphans any credentials written by an earlier build.** The
+magic number is not found at the new location, `wifi_store_load()` returns
+false, and the board falls back to the compiled-in network or to setup mode —
+the designed fallback doing its job, not a migration step. Re-provision once
+after flashing this.
 
 `flash_range_erase()` and `flash_range_program()` run with interrupts disabled,
 which stalls the background interrupt servicing lwIP for a few tens of

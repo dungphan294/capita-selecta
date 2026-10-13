@@ -1,0 +1,29 @@
+//
+// A known-good peripheral, for verifying the other two projects.
+//
+// It publishes the same reading two ways on purpose:
+//   - in its advertisements, as Environmental Sensing service data, which
+//     any scanner can read with no connection and no pairing
+//   - as a GATT Temperature characteristic, which requires a connection and
+//     a GATT client
+//
+// setup_portal reads the first. ble_central reads the second. Both should
+// agree, which is what makes this a useful reference.
+//
+
+PRIMARY_SERVICE, GAP_SERVICE
+CHARACTERISTIC, GAP_DEVICE_NAME, READ, "Pico2W-Sensor"
+
+PRIMARY_SERVICE, GATT_SERVICE
+CHARACTERISTIC, GATT_DATABASE_HASH, READ,
+
+PRIMARY_SERVICE, ORG_BLUETOOTH_SERVICE_DEVICE_INFORMATION
+CHARACTERISTIC, ORG_BLUETOOTH_CHARACTERISTIC_MANUFACTURER_NAME_STRING, READ, "Saxion"
+CHARACTERISTIC, ORG_BLUETOOTH_CHARACTERISTIC_MODEL_NUMBER_STRING, READ, "Pico 2 W"
+CHARACTERISTIC, ORG_BLUETOOTH_CHARACTERISTIC_FIRMWARE_REVISION_STRING, READ, "1.0"
+
+PRIMARY_SERVICE, ORG_BLUETOOTH_SERVICE_ENVIRONMENTAL_SENSING
+CHARACTERISTIC, ORG_BLUETOOTH_CHARACTERISTIC_TEMPERATURE, READ | NOTIFY | DYNAMIC
+
+PRIMARY_SERVICE, ORG_BLUETOOTH_SERVICE_BATTERY_SERVICE
+CHARACTERISTIC, ORG_BLUETOOTH_CHARACTERISTIC_BATTERY_LEVEL, READ | DYNAMIC

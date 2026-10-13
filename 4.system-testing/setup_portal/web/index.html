@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>Pico 2 W Setup</title>
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<main class="shell">
+
+  <header class="head">
+    <h1>Pico 2 W &mdash; setup</h1>
+    <p class="muted">RP2350 &middot; CYW43439 &middot; Wi-Fi and Bluetooth LE</p>
+  </header>
+
+  <div id="banner" class="banner" hidden></div>
+
+  <div class="grid">
+
+    <!-- ---------- Wi-Fi ---------- -->
+    <section class="card">
+      <div class="card-head">
+        <h2>Wi-Fi</h2>
+        <span id="wifi-state" class="pill">&mdash;</span>
+      </div>
+
+      <dl class="stats">
+        <dt>Network</dt>    <dd id="wifi-ssid">&mdash;</dd>
+        <dt>IP address</dt> <dd id="wifi-ip">&mdash;</dd>
+      </dl>
+      <p id="wifi-fail" class="fail" hidden></p>
+
+      <div class="card-head sub-head">
+        <h3>Networks in range</h3>
+        <form method="POST" action="/scan" class="inline" id="scan-form">
+          <button class="ghost" type="submit" id="scan-btn">Scan</button>
+        </form>
+      </div>
+
+      <ul id="wifi-list" class="rows">
+        <li class="empty">No scan yet.</li>
+      </ul>
+
+      <form method="POST" action="/wifi" id="wifi-form">
+        <label for="ssid">Network name</label>
+        <input id="ssid" name="ssid" maxlength="32" autocapitalize="off"
+               autocorrect="off" spellcheck="false" required>
+
+        <label for="pass">Password <span class="muted">&mdash; empty if open</span></label>
+        <input id="pass" name="pass" type="password" maxlength="63" autocomplete="off">
+
+        <button class="primary" type="submit">Save and join</button>
+      </form>
+    </section>
+
+    <!-- ---------- Bluetooth ---------- -->
+    <section class="card">
+      <div class="card-head">
+        <h2>Bluetooth LE</h2>
+        <span id="ble-link" class="pill">&mdash;</span>
+      </div>
+
+      <div id="pinned" class="pinned" hidden>
+        <div class="pin-label muted">Pinned sensor</div>
+        <div class="pin-name" id="pin-name">&mdash;</div>
+        <div class="pin-temp" id="pin-temp" hidden><span>&mdash;</span><small>&deg;C</small></div>
+        <div class="pin-meta muted" id="pin-meta">&mdash;</div>
+      </div>
+
+      <div class="card-head sub-head">
+        <h3>Devices in range</h3>
+        <span id="ble-count" class="muted small">&mdash;</span>
+      </div>
+
+      <ul id="ble-list" class="rows">
+        <li class="empty">Nothing seen yet.</li>
+      </ul>
+
+      <form method="POST" action="/ble" id="ble-form">
+        <label for="target">Pin a device by name</label>
+        <input id="target" name="target" maxlength="23" autocapitalize="off"
+               autocorrect="off" spellcheck="false">
+        <button class="primary" type="submit">Save target</button>
+      </form>
+    </section>
+
+  </div>
+
+  <section class="card danger-card">
+    <h2>Factory reset</h2>
+    <p class="muted small">Erases stored Wi-Fi credentials and the pinned BLE
+      target, then restarts into access-point mode.</p>
+    <form method="POST" action="/reset" id="reset-form">
+      <button class="danger" type="submit">Erase settings and restart</button>
+    </form>
+  </section>
+
+  <footer class="muted foot">
+    <span id="live" class="dot" title="polling"></span>
+    <span id="foot-text">Refreshes every 3&nbsp;s.</span>
+  </footer>
+
+</main>
+<script src="/app.js"></script>
+</body>
+</html>

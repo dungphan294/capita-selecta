@@ -1,0 +1,41 @@
+//
+// Provisioning service — the out-of-band channel that exists before there is
+// any network. Compiled to portal_gatt.h at build time by BTstack's
+// compile_gatt.py, via pico_btstack_make_gatt_header() in CMakeLists.txt.
+//
+// Every characteristic is DYNAMIC, which is what makes BTstack call back into
+// ble_portal.c instead of serving a fixed value out of the generated table.
+//
+
+PRIMARY_SERVICE, GAP_SERVICE
+CHARACTERISTIC, GAP_DEVICE_NAME, READ, "Pico2W-Setup"
+
+PRIMARY_SERVICE, GATT_SERVICE
+CHARACTERISTIC, GATT_DATABASE_HASH, READ,
+
+// Custom provisioning service.
+PRIMARY_SERVICE, 4A7F0000-1C2B-4F7A-9D3E-0A1B2C3D4E5F
+
+// WiFi SSID — UTF-8, up to 32 octets.
+CHARACTERISTIC, 4A7F0001-1C2B-4F7A-9D3E-0A1B2C3D4E5F, READ | WRITE | DYNAMIC
+CHARACTERISTIC_USER_DESCRIPTION, READ, "WiFi SSID"
+
+// WiFi passphrase — write-only on purpose; it is never readable back.
+CHARACTERISTIC, 4A7F0002-1C2B-4F7A-9D3E-0A1B2C3D4E5F, WRITE | DYNAMIC
+CHARACTERISTIC_USER_DESCRIPTION, READ, "WiFi password (write only)"
+
+// Command — one byte. 1 join, 2 save, 3 scan, 4 start AP, 5 factory reset.
+CHARACTERISTIC, 4A7F0003-1C2B-4F7A-9D3E-0A1B2C3D4E5F, WRITE | DYNAMIC
+CHARACTERISTIC_USER_DESCRIPTION, READ, "Command"
+
+// Status — human-readable text, notified on every state change.
+CHARACTERISTIC, 4A7F0004-1C2B-4F7A-9D3E-0A1B2C3D4E5F, READ | NOTIFY | DYNAMIC
+CHARACTERISTIC_USER_DESCRIPTION, READ, "Status"
+
+// Portal URL once there is an address, e.g. "http://172.20.10.11/".
+CHARACTERISTIC, 4A7F0005-1C2B-4F7A-9D3E-0A1B2C3D4E5F, READ | DYNAMIC
+CHARACTERISTIC_USER_DESCRIPTION, READ, "Portal URL"
+
+// Scan results — read repeatedly; each read returns the next line, then "".
+CHARACTERISTIC, 4A7F0006-1C2B-4F7A-9D3E-0A1B2C3D4E5F, READ | DYNAMIC
+CHARACTERISTIC_USER_DESCRIPTION, READ, "WiFi scan results"

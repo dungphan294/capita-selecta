@@ -1,0 +1,200 @@
+/* Pico 2 W setup portal.
+   Dark by default, light when the system asks. One column on a phone — which
+   is what you are holding when the board has no network yet — two once there
+   is room. */
+
+:root {
+  --bg: #0e0f11; --card: #16181c; --line: #262a30;
+  --text: #e8eaed; --muted: #8b919b;
+  --accent: #4ade80; --accent-ink: #053d1c;
+  --warn: #fbbf24;
+  --danger: #f87171; --danger-bg: #241a1a;
+  --radius: .6rem;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f6f7f9; --card: #fff; --line: #e3e6ea;
+    --text: #16181c; --muted: #666d78;
+    --accent: #16a34a; --accent-ink: #fff;
+    --warn: #a16207;
+    --danger: #b91c1c; --danger-bg: #fdf0f0;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0; padding: 1rem;
+  background: var(--bg); color: var(--text);
+  font: 16px/1.5 -apple-system, BlinkMacSystemFont, system-ui, "Segoe UI",
+        Roboto, Helvetica, Arial, sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+
+.shell { max-width: 62rem; margin: 0 auto; }
+.muted { color: var(--muted); }
+.small { font-size: .8rem; }
+
+.head { padding: 1rem .25rem 1.5rem; }
+.head h1 { margin: 0; font-size: 1.35rem; letter-spacing: -.01em; }
+.head p  { margin: .3rem 0 0; font-size: .9rem; }
+
+.grid { display: grid; gap: 1rem; grid-template-columns: 1fr; }
+
+@media (min-width: 52rem) {
+  body { padding: 2rem; }
+  .grid { grid-template-columns: 1fr 1fr; align-items: start; }
+  .head h1 { font-size: 1.6rem; }
+}
+
+.card {
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 1.25rem;
+}
+.danger-card { margin-top: 1rem; }
+.danger-card h2 { margin-top: 0; }
+
+.card-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem; margin-bottom: .75rem;
+}
+.sub-head { margin-top: 1.75rem; }
+.card-head h2, .card-head h3 {
+  margin: 0; font-size: .8rem; font-weight: 600; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--muted);
+}
+.card-head h3 { font-size: .72rem; }
+.inline { margin: 0; }
+
+.pill {
+  font-size: .7rem; font-weight: 600; letter-spacing: .04em;
+  text-transform: uppercase;
+  padding: .2rem .5rem; border-radius: 1rem;
+  border: 1px solid var(--line); color: var(--muted);
+}
+.pill.ok   { color: var(--accent); border-color: var(--accent); }
+.pill.busy { color: var(--warn);   border-color: var(--warn); }
+.pill.bad  { color: var(--danger); border-color: var(--danger); }
+
+.stats { display: grid; grid-template-columns: auto 1fr; margin: 0; }
+.stats dt, .stats dd {
+  padding: .55rem 0; border-top: 1px solid var(--line); margin: 0; font-size: .9rem;
+}
+.stats dt { color: var(--muted); padding-right: 1rem; }
+.stats dd { text-align: right; font-variant-numeric: tabular-nums;
+            overflow: hidden; text-overflow: ellipsis; }
+
+.fail {
+  margin: .75rem 0 0; padding: .55rem .7rem; font-size: .85rem;
+  color: var(--danger); background: var(--danger-bg);
+  border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
+  border-radius: .4rem;
+}
+
+/* -- rows (shared by the Wi-Fi and BLE lists) ------------------------------ */
+
+.rows { list-style: none; margin: 0 0 1.25rem; padding: 0; }
+.rows .empty { color: var(--muted); font-size: .9rem; padding: .7rem 0; }
+
+.rows li.row {
+  display: flex; align-items: center; gap: .7rem;
+  padding: .55rem .5rem; border-radius: .4rem;
+  border: 1px solid transparent;
+}
+.rows li.row.pick { cursor: pointer; }
+.rows li.row.pick:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.rows li.row[aria-selected="true"] {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.rows .name {
+  flex: 1 1 auto; min-width: 0; font-size: .92rem;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.rows .meta { flex: 0 0 auto; font-size: .72rem; color: var(--muted);
+              font-variant-numeric: tabular-nums; }
+.rows .tag {
+  flex: 0 0 auto; font-size: .64rem; text-transform: uppercase;
+  letter-spacing: .04em; padding: .1rem .35rem; border-radius: .25rem;
+  border: 1px solid var(--line); color: var(--muted);
+}
+.rows .tag.ent { color: var(--warn); border-color: var(--warn); }
+.rows .tag.temp { color: var(--accent); border-color: var(--accent); }
+
+.bars { flex: 0 0 auto; display: flex; align-items: flex-end; gap: 2px; height: 1rem; }
+.bars i { width: 3px; background: var(--line); border-radius: 1px; }
+.bars i:nth-child(1) { height: 25%; }
+.bars i:nth-child(2) { height: 50%; }
+.bars i:nth-child(3) { height: 75%; }
+.bars i:nth-child(4) { height: 100%; }
+.bars i.on { background: var(--accent); }
+
+/* -- pinned sensor --------------------------------------------------------- */
+
+.pinned {
+  padding: .9rem; margin-bottom: .5rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border-radius: .4rem;
+}
+.pin-label { font-size: .68rem; text-transform: uppercase; letter-spacing: .08em; }
+.pin-name { font-size: 1rem; font-weight: 600; margin-top: .15rem; }
+.pin-temp {
+  font-size: 2.25rem; font-weight: 650; line-height: 1.1;
+  color: var(--accent); font-variant-numeric: tabular-nums;
+}
+.pin-temp small { font-size: .4em; font-weight: 500; margin-left: .1em; }
+.pin-meta { font-size: .75rem; }
+
+/* -- forms ----------------------------------------------------------------- */
+
+label { display: block; font-size: .78rem; color: var(--muted); margin-bottom: .3rem; }
+input {
+  width: 100%; padding: .6rem .7rem; margin-bottom: 1rem;
+  font: inherit; font-size: .95rem; color: var(--text);
+  background: var(--bg); border: 1px solid var(--line); border-radius: .4rem;
+}
+input:focus-visible, button:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 1px;
+}
+button { font: inherit; cursor: pointer; border-radius: .4rem; }
+button.primary {
+  width: 100%; padding: .7rem; border: 0;
+  background: var(--accent); color: var(--accent-ink);
+  font-weight: 650; font-size: .95rem;
+}
+button.ghost {
+  padding: .3rem .65rem; font-size: .78rem;
+  background: transparent; color: var(--accent); border: 1px solid var(--line);
+}
+button.danger {
+  width: 100%; padding: .6rem; font-size: .85rem;
+  background: var(--danger-bg); color: var(--danger);
+  border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
+}
+button[disabled] { opacity: .55; cursor: default; }
+
+/* -- banner, footer -------------------------------------------------------- */
+
+.banner {
+  padding: .7rem .9rem; margin-bottom: 1rem; border-radius: var(--radius);
+  font-size: .9rem;
+  background: color-mix(in srgb, var(--accent) 10%, var(--card));
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.banner.warn {
+  background: var(--danger-bg); color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 35%, transparent);
+}
+
+.foot { font-size: .78rem; padding: 1.5rem .25rem; display: flex;
+        align-items: center; gap: .5rem; }
+.dot { width: .5rem; height: .5rem; border-radius: 50%;
+       background: var(--accent); flex: 0 0 auto; }
+.dot.stale { background: var(--muted); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .dot { transition: background .3s; }
+  .rows li.row { transition: background .15s, border-color .15s; }
+}

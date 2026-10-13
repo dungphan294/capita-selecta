@@ -11,8 +11,33 @@
 #define STORE_MAGIC   0x50574946u   /* 'PWIF' — a record we wrote */
 #define STORE_VERSION 1u
 
-/* Last sector of flash. The linker places the image from the bottom up. */
-#define STORE_OFFSET  (PICO_FLASH_SIZE_BYTES - FLASH_SECTOR_SIZE)
+/*
+ * Fourth sector from the end, not the last — matching the setup_portal
+ * project, and for the same two reasons:
+ *
+ *   -1  reserved. The RP2350 E10 errata workaround wants the final sector
+ *       free, and the SDK's own BTstack flash bank deliberately skips it
+ *       whenever PICO_RP2350_A2_SUPPORTED is set — which pico2_w.h sets by
+ *       default. This is where these credentials used to live, which was a
+ *       latent bug: correct-looking, and quietly standing on reserved ground.
+ *   -2  \  BTstack link-key store, PICO_FLASH_BANK_TOTAL_SIZE = 2 sectors.
+ *   -3  /  Claimed as soon as pico_btstack_flash_bank is linked. This project
+ *          does not link it today, but reserving the space costs nothing and
+ *          means adding Bluetooth later cannot silently overwrite settings.
+ *   -4  <- here
+ *
+ * Moving the offset orphans any record written by an earlier build: the magic
+ * number will not be found at the new location, wifi_store_load() returns
+ * false, and the board falls back to the compiled-in network or to setup mode.
+ * That is the designed fallback doing its job, not a migration step.
+ */
+#define STORE_OFFSET  (PICO_FLASH_SIZE_BYTES - 4u * FLASH_SECTOR_SIZE)
+
+_Static_assert(STORE_OFFSET % FLASH_SECTOR_SIZE == 0,
+               "credential store must start on a sector boundary");
+_Static_assert(STORE_OFFSET + FLASH_SECTOR_SIZE
+                   <= PICO_FLASH_SIZE_BYTES - 3u * FLASH_SECTOR_SIZE,
+               "credential sector must stay clear of the top three sectors");
 
 typedef struct {
     uint32_t magic;
@@ -42,8 +67,32 @@ static const record_t *stored(void)
     return (const record_t *)(XIP_BASE + STORE_OFFSET);
 }
 
+/*
+ * The image grows from the bottom of flash and the store sits near the top,
+ * so they cannot collide at any plausible size — but "cannot" is worth
+ * checking rather than asserting in a comment. The linker provides the end of
+ * the binary; a collision would mean erasing part of the program.
+ */
+extern char __flash_binary_end;
+
+static bool image_clear_of_store(void)
+{
+    uintptr_t image_end = (uintptr_t)&__flash_binary_end - XIP_BASE;
+
+    if (image_end <= STORE_OFFSET)
+        return true;
+
+    printf("wifi_store: REFUSING to touch flash — the image ends at 0x%lx, "
+           "past the credential sector at 0x%lx\n",
+           (unsigned long)image_end, (unsigned long)STORE_OFFSET);
+    return false;
+}
+
 bool wifi_store_load(wifi_creds_t *out)
 {
+    if (!image_clear_of_store())
+        return false;
+
     const record_t *r = stored();
 
     if (r->magic != STORE_MAGIC || r->version != STORE_VERSION)
@@ -68,6 +117,9 @@ bool wifi_store_load(wifi_creds_t *out)
 
 static bool write_page(const void *src, size_t len)
 {
+    if (!image_clear_of_store())
+        return false;
+
     uint8_t page[FLASH_PAGE_SIZE];
     memset(page, 0xFF, sizeof page);
     if (src) memcpy(page, src, len);

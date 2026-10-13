@@ -103,6 +103,34 @@ static size_t append_json_string(char *buf, size_t cap, size_t len, const char *
     return appendf(buf, cap, len, "\"");
 }
 
+/*
+ * Copy the method and request target out of "GET /path?query HTTP/1.1".
+ * Hand-rolled rather than sscanf("%7s %159s"): newlib's scanf pulls in
+ * __ssvfscanf_r, _strtod_l and its float tables, around 23 KB of flash, to
+ * do what this does in a dozen lines.
+ */
+static bool split_request_line(const char *req, char *method, size_t m_cap,
+                               char *path, size_t p_cap)
+{
+    size_t n = 0;
+    while (req[n] != '\0' && req[n] != ' ' && req[n] != '\r' && n + 1 < m_cap) {
+        method[n] = req[n];
+        n++;
+    }
+    method[n] = '\0';
+    if (n == 0 || req[n] != ' ') return false;
+
+    const char *sp = req + n + 1;
+    size_t k = 0;
+    while (sp[k] != '\0' && sp[k] != ' ' && sp[k] != '\r' &&
+           sp[k] != '?'  && k + 1 < p_cap) {
+        path[k] = sp[k];
+        k++;
+    }
+    path[k] = '\0';
+    return k > 0;
+}
+
 static int hexval(char c)
 {
     if (c >= '0' && c <= '9') return c - '0';
@@ -482,12 +510,9 @@ static void try_handle(struct tcp_pcb *pcb, http_conn_t *c)
         return;                          /* wait for the body */
 
     char method[8] = {0}, path[160] = {0};
-    if (sscanf(c->req, "%7s %159s", method, path) != 2) {
+    if (!split_request_line(c->req, method, sizeof method, path, sizeof path)) {
         respond_text(c, "400 Bad Request", "bad request\n");
     } else {
-        char *q = strchr(path, '?');     /* no query parameters are used */
-        if (q) *q = '\0';
-
         char inm[96];
         bool have_inm = header_value(c->req, "If-None-Match", inm, sizeof inm);
 
