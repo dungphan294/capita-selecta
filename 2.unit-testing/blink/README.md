@@ -9,7 +9,7 @@ real output, including the failures.
 **Hardware used**
 
 | Item | Detail |
-| --- | --- |
+|---|---|
 | Board | Pico 2 W — RP2350 rev 2, package A, 30 GPIO |
 | Flash | Winbond W25Q32, 4 MiB, QSPI, XIP-mapped at `0x10000000` |
 | WiFi/BT | CYW43439 |
@@ -21,7 +21,7 @@ real output, including the failures.
 
 ## 1. Project layout
 
-```txt
+```
 rasp/blink/
 ├── CMakeLists.txt          build definition
 ├── pico_sdk_import.cmake   boilerplate that locates the SDK
@@ -45,7 +45,7 @@ The `raspberry-pi.raspberry-pi-pico` extension ignores Homebrew and installs a
 private toolchain under `~/.pico-sdk/`:
 
 | Path | Contents |
-| --- | --- |
+|---|---|
 | `sdk/2.3.0` | Pico SDK sources |
 | `toolchain/15_2_Rel1` | `arm-none-eabi-gcc` / `arm-none-eabi-gdb` |
 | `toolchain/RISCV_PICO_2_3_0_1` | `riscv32-pico-elf-gcc` / `riscv32-pico-elf-gdb` |
@@ -65,7 +65,7 @@ terminal**. In a normal shell, `PICO_SDK_PATH` is empty and `openocd` is not on
 `pico_add_extra_outputs(blink)` in CMakeLists generates all of these:
 
 | File | Size | Purpose |
-| --- | --- | --- |
+|---|---|---|
 | `blink.elf` | 948 KB | **debug symbols — what GDB loads** |
 | `blink.uf2` | 520 KB | drag-and-drop to the `RPI-RP2` volume |
 | `blink.bin` | 259 KB | raw image |
@@ -76,14 +76,14 @@ terminal**. In a normal shell, `PICO_SDK_PATH` is empty and `openocd` is not on
 ### Why "blink" is 271 KB
 
 | Section | Size |
-| --- | --- |
+|---|---|
 | `.text` (all code) | 28,748 B |
 | `.rodata` | 227,848 B |
 | `.data` | 2,688 B |
 
 One symbol dominates:
 
-```txt
+```
 w43439A0_7_95_49_00_combined    0x36fd8 = 225,240 bytes
 ```
 
@@ -108,7 +108,7 @@ propagates into which compiler, which OpenOCD config, and which GDB you must
 use — mismatch any of them and nothing works.
 
 | Build (`PICO_PLATFORM`) | Compiler | OpenOCD target | GDB |
-| --- | --- | --- | --- |
+|---|---|---|---|
 | `rp2350-arm-s` | `arm-none-eabi-gcc` | `target/rp2350.cfg` | `arm-none-eabi-gdb` |
 | `rp2350-riscv` | `riscv32-pico-elf-gcc` | `target/rp2350-riscv.cfg` | `riscv32-pico-elf-gdb` |
 
@@ -130,7 +130,7 @@ The extension sidebar carries every action you need:
 ![Raspberry Pi Pico extension sidebar](docs/images/vscode-pico-sidebar.png)
 
 | Button | Effect |
-| --- | --- |
+|---|---|
 | **Compile Project** | ninja build into `build/` |
 | **Run Project (USB)** | `picotool load -fx` — flash over USB, no probe |
 | **Flash Project (SWD)** | flash through the Debug Probe |
@@ -155,7 +155,7 @@ The status bar confirms the active configuration: `Pico SDK: 2.3.0`,
 Build:
 
 ```bash
-cd /link-to-directory/blink
+cd 2.unit-testing/blink
 ~/.pico-sdk/ninja/v1.13.2/ninja -C build
 ```
 
@@ -261,7 +261,7 @@ break after `adc_read()` and inspect `raw`. ADC is the thing *being* debugged.
 
 **The stack**
 
-```txt
+```
 ┌─────────────────────────────────────────────┐
 │  GDB          arm-none-eabi-gdb             │  on the Mac
 │  "line 29 of blink.c", "variable rc"        │
@@ -282,7 +282,7 @@ break after `adc_read()` and inspect `raw`. ADC is the thing *being* debugged.
 ```
 
 | | Runs on | Knows about | Does **not** know |
-| --- | --- | --- | --- |
+|---|---|---|---|
 | **GDB** | the Mac | your C source, symbols, types, stack frames | anything about RP2350 hardware |
 | **OpenOCD** | the Mac | RP2350 silicon, flash algorithms, core control | your source code |
 | **Debug Probe** | the dongle | nothing — it converts USB to SWD | everything else |
@@ -303,7 +303,7 @@ could type on port 4444.
 **Debug Probe (SWD)**
 
 | Pros | Cons |
-| --- | --- |
+|---|---|
 | Breakpoints, single-step, variable inspection | extra hardware to buy and wire |
 | Flash without touching BOOTSEL | needs correct arch-matched configs |
 | Works on a crashed or halted target | old firmware is slow (see below) |
@@ -313,7 +313,7 @@ could type on port 4444.
 **UF2 drag-and-drop**
 
 | Pros | Cons |
-| --- | --- |
+|---|---|
 | Zero setup, zero extra hardware | no debugging at all |
 | Cannot be misconfigured | physical button press every time |
 | | slow, manual |
@@ -321,14 +321,14 @@ could type on port 4444.
 **picotool over USB**
 
 | Pros | Cons |
-| --- | --- |
+|---|---|
 | Fast, scriptable, no button press with `-fx` | no debugging |
 | No probe needed | needs working USB firmware on the target |
 
 **printf debugging over UART**
 
 | Pros | Cons |
-| --- | --- |
+|---|---|
 | Shows timing and behaviour of running code | changes the timing you are measuring |
 | Survives a halted core | needs a rebuild+reflash per change |
 | No probe needed if you have a USB-serial adapter | no state inspection |
@@ -336,7 +336,7 @@ could type on port 4444.
 **VS Code / Cortex-Debug vs raw GDB**
 
 | | Pros | Cons |
-| --- | --- | --- |
+|---|---|---|
 | **VS Code** | one keypress, variables pane, SVD peripheral-register view, clickable stepping | hides what it is doing; harder to diagnose when it breaks |
 | **Raw GDB** | full control, scriptable, works over SSH, transparent | verbose commands, steeper learning curve |
 
@@ -357,11 +357,11 @@ could type on port 4444.
 **Terminal 2** — GDB. Enter commands **one line at a time**:
 
 ```bash
-cd /link-to-directory/blink
+cd 2.unit-testing/blink
 ~/.pico-sdk/toolchain/15_2_Rel1/bin/arm-none-eabi-gdb build/blink.elf
 ```
 
-```txt
+```
 target extended-remote 127.0.0.1:3333
 monitor reset init
 load
@@ -371,7 +371,7 @@ continue
 
 ![A successful GDB session](docs/images/gdb-success.png)
 
-```txt
+```
 Thread 1 "rp2350.cm0" hit Breakpoint 1, main () at blink.c:29
 29          return cyw43_arch_init();
 ```
@@ -400,7 +400,7 @@ or use **Switch Build Type** in the extension sidebar.
 
 ![Arm cores unavailable](docs/images/openocd-cores-unavailable.png)
 
-```txt
+```
 Info : [rp2350.cm0] become unavailable
 Info : [rp2350.cm1] become unavailable
 Error: Target not examined yet
@@ -437,7 +437,7 @@ $OCD/openocd -s $OCD/scripts -f interface/cmsis-dap.cfg \
 
 ![Cortex-Debug failure](docs/images/vscode-debug-failure.png)
 
-```txt
+```
 Failed to launch GDB: Remote communication error.
 Target disconnected: error while reading: Connection reset by peer.
 (from target-select extended-remote localhost:3333)
@@ -474,7 +474,7 @@ Check with `info breakpoints`, free one with `delete N`.
 
 ### Slow flashing — 45 KB/sec
 
-```txt
+```
 Warn : *** Old Raspberry Pi Debugprobe firmware detected (1.0.1)
 Warn : *** Using low-performance workaround
 ```
@@ -537,7 +537,7 @@ is the day-to-day one.
 ### Prerequisites
 
 | Requirement | Check |
-| --- | --- |
+|---|---|
 | Probe `D` cable seated, board powered separately | `ioreg -p IOUSB -l -w 0 \| grep "Debug Probe"` |
 | Extensions installed | `raspberry-pi.raspberry-pi-pico`, `marus25.cortex-debug` |
 | **No** hand-started OpenOCD running | `pgrep -fl openocd` → should be empty |
@@ -579,7 +579,7 @@ because SDK functions are no longer inlined away.
 ### Toolbar
 
 | Button | Key | Effect |
-| --- | --- | --- |
+|---|---|---|
 | Continue / Pause | **F5** | run to next breakpoint |
 | Step Over | **F10** | execute this line, don't enter calls |
 | Step Into | **F11** | descend into the call on this line |
@@ -594,7 +594,7 @@ then the SDK's SPI transfers.
 ### Breakpoints
 
 | Kind | How | Use |
-| --- | --- | --- |
+|---|---|---|
 | Plain | click the gutter | stop every time |
 | Conditional | right-click gutter → *Add Conditional Breakpoint* → `led_on == true` | stop only when it matters |
 | Hit count | right-click gutter → *Hit Count* → `> 10` | skip early iterations |
@@ -628,7 +628,7 @@ the **Breakpoints** panel rather than deleting them.
 
 ### Call Stack and the two cores
 
-```txt
+```
 rp2350.cm0   state: breakpoint     ← your code
 rp2350.cm1   state: debug-request  ← idle; blink is single-core
 ```
@@ -662,7 +662,7 @@ actually thinks its configuration is versus what you believe you configured.
 
 Prefix with `-exec`:
 
-```txt
+```
 -exec info registers
 -exec x/16xw 0x40028000
 -exec info breakpoints
@@ -689,7 +689,7 @@ it never takes anything away. When a GUI feature misbehaves, drop to `-exec`.
 ### Gotchas
 
 | Symptom | Cause / fix |
-| --- | --- |
+|---|---|
 | `could not connect: Operation timed out` | `Pico Debug (Cortex-Debug with external OpenOCD)` selected but no server running. Switch to plain `Pico Debug (Cortex-Debug)`, or start OpenOCD yourself |
 | `Connection reset by peer` | a server is there but wrong — wrong arch config, or cores unavailable. `pkill -f openocd` and let VS Code launch its own |
 | Locals show `<optimized out>` | Release build — switch to Debug |
@@ -705,7 +705,7 @@ it never takes anything away. When a GUI feature misbehaves, drop to `-exec`.
 
 ### `ninja: error: loading 'CMakeFiles/rules.ninja': No such file or directory`
 
-```txt
+```
 ninja: Entering directory `build'
 ninja: error: build.ninja:35: loading 'CMakeFiles/rules.ninja': No such file or directory
 ```
@@ -718,7 +718,7 @@ The underlying fault is usually a **half-completed toolchain switch** in
 `CMakeCache.txt`. CMake caches compiler paths on the first configure and never
 re-checks them, so switching board or architecture can leave a mixture:
 
-```txt
+```
 CMAKE_ASM_COMPILER  .../toolchain/15_2_Rel1/bin/arm-none-eabi-gcc        ← Arm
 CMAKE_C_COMPILER    .../toolchain/RISCV_PICO_2_3_0_1/bin/riscv32-...-gcc ← RISC-V
 CMAKE_CXX_COMPILER  .../toolchain/RISCV_PICO_2_3_0_1/bin/riscv32-...-g++ ← RISC-V
@@ -730,7 +730,7 @@ This stays invisible while object files exist — ninja just relinks them. Once
 `CMakeFiles/` is cleaned, CMake re-detects the compiler and the contradiction
 surfaces:
 
-```txt
+```
 riscv32-pico-elf-gcc  -mcpu=cortex-m33 -mthumb -march=armv8-m.main+fp+dsp
 riscv32-pico-elf-gcc: error: unrecognized command-line option '-mthumb'
 riscv32-pico-elf-gcc: error: '-march=armv8-m.main+fp+dsp': ISA string must begin with rv32
@@ -748,7 +748,7 @@ grep -E "^CMAKE_(C|CXX|ASM)_COMPILER:" build/CMakeCache.txt
 leaves `CMakeCache.txt`, which is exactly where the stale paths live.
 
 ```bash
-cd /1.unit-testing/blink
+cd 2.unit-testing/blink
 rm -rf build
 ~/.pico-sdk/cmake/v4.3.4/bin/cmake -B build -G Ninja \
   -DCMAKE_BUILD_TYPE=Debug \
@@ -759,7 +759,7 @@ rm -rf build
 
 A healthy configure names the toolchain consistently:
 
-```txt
+```
 Pico Platform (PICO_PLATFORM) is 'rp2350-arm-s'.
 Detected GCC so defaulting PICO_COMPILER to `pico_arm_cortex_m33_gcc`
 Build type is Debug

@@ -11,7 +11,7 @@ Debug Probe. Verified on real hardware.
 
 Output format, one line per reading:
 
-```txt
+```
 RP2350 internal temperature sensor
 ADC channel 4, 12-bit, Vref 3.3 V, 16 samples averaged
 
@@ -22,7 +22,7 @@ ADC channel 4, 12-bit, Vref 3.3 V, 16 samples averaged
 
 Values read directly off the chip with the debugger, mid-loop:
 
-```txt
+```
 (gdb) break internal_temperature.c:78
 (gdb) continue
 Thread 1 "rp2350.cm0" hit Breakpoint 1, main () at internal_temperature.c:78
@@ -47,7 +47,7 @@ channel** — channel 4 on the RP2350A package used by the Pico 2 W. It is not
 exposed on any pin.
 
 | Property | Value |
-| --- | --- |
+|---|---|
 | ADC | 12-bit, 0–4095, ~500 ksps |
 | Reference | 3.3 V |
 | Channel | `ADC_TEMPERATURE_CHANNEL_NUM` = `NUM_ADC_CHANNELS - 1` = **4** |
@@ -56,7 +56,7 @@ exposed on any pin.
 
 Conversion, from the RP2350 datasheet:
 
-```txt
+```
 T = 27 - (V - 0.706) / 0.001721
 ```
 
@@ -83,7 +83,7 @@ Accuracy caveats worth knowing:
 
 ## Project layout
 
-```txt
+```
 rasp/internal_temperature/
 ├── CMakeLists.txt
 ├── internal_temperature.c
@@ -112,7 +112,7 @@ pico_enable_stdio_usb(internal_temperature 0)
 
 ### This binary is tiny — and that is the point
 
-```txt
+```
    text    data     bss     dec     hex
   21660       0     792   22452    57b4
 ```
@@ -155,7 +155,7 @@ microseconds and steadies the reading substantially.
 From the IDE: **Compile Project**, then **Flash Project (SWD)**.
 
 ```bash
-cd /1.unit-testing/internal_temperature
+cd 2.unit-testing/internal_temperature
 
 ~/.pico-sdk/cmake/v4.3.4/bin/cmake -B build -G Ninja \
   -DCMAKE_BUILD_TYPE=Debug -DPICO_BOARD=pico2_w -DPICO_PLATFORM=rp2350-arm-s .
@@ -202,7 +202,7 @@ Resetting first clears it.
 ## Troubleshooting
 
 | Symptom | Cause and fix |
-| --- | --- |
+|---|---|
 | Temperature obviously wrong (e.g. -40 or 120 degC) | `adc_set_temp_sensor_enabled(true)` missing |
 | Reading jumps by a degree between samples | increase `SAMPLES` |
 | Reads a few degrees high | expected — this is die temperature, not ambient |

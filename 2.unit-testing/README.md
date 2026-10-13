@@ -4,14 +4,29 @@ Verification of individual subsystems on a Raspberry Pi Pico 2 W (RP2350),
 following the **V-model**. Each project here exercises **one** subsystem in
 isolation, verified against its module design.
 
-A unit here is a peripheral or driver module, which is the smallest element of the
+A unit here is a peripheral or driver module — the smallest element of the
 architectural decomposition. A failure at this level has exactly one place to
 look, which is the reason for testing at this level before combining anything.
+
+Integration-level verification, where these subsystems are combined, is in
+[`../3.integration-testing/`](../3.integration-testing/).
+
+```
+ Requirements ─────────────────────────────► Acceptance test
+   \                                              /
+    System design ──────────────────────► System test
+      \                                        /
+       Architectural design ──────► Integration test
+         \                                  /
+          Module design ──► UNIT TEST  ◄── you are here
+            \                   /
+             Implementation
+```
 
 ## Test environment
 
 | Item | Detail |
-| --- | --- |
+|---|---|
 | Target | Raspberry Pi Pico 2 W — RP2350 rev 2, Cortex-M33, 4 MiB W25Q32 flash |
 | Radio | CYW43439 — WiFi 2.4 GHz and Bluetooth |
 | Debug probe | Raspberry Pi Debug Probe (CMSIS-DAP), firmware 1.0.1 |
@@ -33,7 +48,6 @@ of the running target, the GDB command used is given alongside it.
 debugging function, and that the onboard LED can be driven.
 
 **Procedure.**
-
 1. Configure a Debug build (`-Og -g`) and compile.
 2. Flash over SWD through the Debug Probe.
 3. Attach GDB, set a breakpoint at `main`, continue.
@@ -71,7 +85,6 @@ of the board, not of the code.
 `T = 27 - (V - 0.706) / 0.001721`.
 
 **Procedure.**
-
 1. `adc_init()`, `adc_set_temp_sensor_enabled(true)`, select
    `ADC_TEMPERATURE_CHANNEL_NUM`.
 2. Average 16 conversions per reading to suppress LSB jitter.
@@ -122,7 +135,6 @@ linked.
 **Objective.** Verify association with a WPA2 network and address assignment.
 
 **Procedure.**
-
 1. `cyw43_arch_init_with_country()`, then `cyw43_arch_enable_sta_mode()`.
 2. `cyw43_arch_wifi_connect_timeout_ms()` with a 30 s timeout.
 3. Print the address obtained from `netif_default`.
@@ -132,7 +144,7 @@ the timeout.
 
 **Observed result.**
 
-```txt
+```
 Connecting to 'iPhone13'
 connect status: joining
 connect status: no ip
@@ -164,7 +176,6 @@ produce the same error code, so `-2` alone does not discriminate between them.
 peripheral operation (being discoverable and connectable).
 
 **Procedure.**
-
 1. Bring up BTstack over the CYW43 HCI transport.
 2. Advertise as `Pico2W` with `ADV_IND` (connectable, undirected).
 3. Scan passively and count received advertising reports.
@@ -175,7 +186,7 @@ and connectable from an external device.
 
 **Observed result.**
 
-```txt
+```
 (gdb) print report_count
 $1 = 1006
 (gdb) print adv_data
@@ -205,19 +216,107 @@ advertises and accepts connections but implements no GATT services.
 
 ---
 
+## UT-5 — `ble_sensor` — BLE peripheral — *not yet carried out*
+
+**Subsystem.** BLE peripheral role: GATT server plus Environmental Sensing
+service data in the advertisement.
+
+**Why it exists.** It is the known-good target the other two BLE projects are
+measured against. It publishes the same temperature twice — as service data in
+every advertisement, readable with no connection at all, and as GATT
+characteristic `0x2A6E`, readable by a central with a GATT client.
+
+**Status.** Builds at 347,688 bytes. **No procedure has been carried out on
+hardware, so there is no result to record.** See `ble_sensor/README.md`.
+
+---
+
+## UT-6 — `ble_central` — BLE central — *not yet carried out*
+
+**Subsystem.** BLE central role: scanning, connecting, GATT service discovery
+and characteristic read.
+
+**Why it exists.** UT-4 established that the radio can scan and count
+advertising reports. Reading an actual *value* off a device needs three things
+a bare scanner does not have, and this project supplies them without a phone.
+
+**Status.** Builds at 354,260 bytes. **No procedure has been carried out on
+hardware, so there is no result to record.** See `ble_central/README.md`.
+
+---
+
 ## Summary
 
 | ID | Project | Subsystem | Key measurement | Verdict |
-| --- | --- | --- | --- | --- |
+|---|---|---|---|---|
 | UT-1 | `blink` | GPIO via CYW43 | breakpoint hit at `main` | PASS |
 | UT-2 | `internal_temperature` | ADC | 27.23 degC, 0.7056 V | PASS |
 | UT-3 | `wifi` | WiFi + lwIP | 172.20.10.11 | PASS |
 | UT-4 | `bluetooth` | Bluetooth + BTstack | 1006 reports; bonded at -45 dBm | PASS |
+| UT-5 | `ble_sensor` | BLE peripheral, GATT + service data | — | **not recorded** |
+| UT-6 | `ble_central` | BLE central, GATT client | — | **not recorded** |
+
+Binary sizes, which show what each unit actually links:
+
+| Project | text | bss |
+|---|---|---|
+| `internal_temperature` | 21,660 | 792 |
+| `blink` | 266,012 | 3,212 |
+| `wifi` | 312,528 | 48,388 |
+| `bluetooth` | 338,956 | 6,668 |
+| `ble_sensor` | 347,688 | 6,752 |
+| `ble_central` | 354,260 | 9,308 |
+
+**Reading these figures.** `text` is code plus read-only constants, and lives in
+flash. `bss` is global and static variables that start at zero — it occupies
+**no flash at all**, because storing thousands of zeros would be pointless; the
+startup code simply zeroes that RAM region before `main()` runs. Only its size
+is recorded. (A third section, `data`, holds globals with a non-zero initial
+value; it is zero in all of these projects.)
+
+    flash used = text + data
+    RAM used   = data + bss, plus stack and heap at runtime
+
+So `bss` is how much RAM each unit reserves before it does anything. The RP2350
+has 520 KB of SRAM, so even the largest here uses under 10%.
+
+What dominates each unit's `bss`:
+
+| Project | Largest `bss` symbol | Bytes |
+|---|---|---|
+| `internal_temperature` | `default_alarm_pool_entries` | 384 |
+| `blink` | `cyw43_state` | 2,268 |
+| `bluetooth` | `cyw43_state` | 2,268 |
+| `wifi` | `memp_memory_PBUF_POOL_base` | **36,771** |
+
+The 48 KB figure for `wifi` is almost entirely lwIP's packet buffer pool, and it
+is a direct consequence of one line in `lwipopts.h`:
+
+```c
+#define PBUF_POOL_SIZE   24     // 24 buffers x ~1530 B ~= 36.7 KB
+```
+
+Halving it frees roughly 18 KB of RAM at the cost of dropping packets under
+load. This is worth knowing because flash overflow produces a link error, which
+is obvious, whereas RAM overflow produces a runtime crash — sometimes only under
+load.
+
+To inspect it on any build:
+
+```bash
+~/.pico-sdk/toolchain/15_2_Rel1/bin/arm-none-eabi-size build/<project>.elf
+
+~/.pico-sdk/toolchain/15_2_Rel1/bin/arm-none-eabi-nm --size-sort -S --radix=d \
+  build/<project>.elf | awk '$3=="b"||$3=="B"{printf "%8d  %s\n",$2,$4}' | tail
+```
+
+In `nm` output `b`/`B` marks bss, `d`/`D` data, `t`/`T` text; lowercase means
+static, uppercase global.
 
 ## Defects found during unit verification
 
 | # | Test | Defect | Root cause | Resolution |
-| --- | --- | --- | --- | --- |
+|---|---|---|---|---|
 | 1 | UT-3 | `Failed to connect: -2` | Access point on 5 GHz; CYW43439 is 2.4 GHz only | Force the AP to 2.4 GHz |
 | 2 | UT-3 | `-DWIFI_SSID=""` compiled in | Undefined CMake variables expand to empty, silently | `include(... OPTIONAL)` plus a runtime guard |
 | 3 | UT-3 | `lwipopts.h: No such file` | lwIP ships no default configuration | Supply the file |
@@ -229,7 +328,7 @@ Not faults in the units under test, but they blocked verification and each one
 recurs:
 
 | # | Defect | Root cause | Resolution |
-| --- | --- | --- | --- |
+|---|---|---|---|
 | E1 | Cortex-M33 cores reported unavailable | `ARCHSEL` latched to RISC-V by an earlier session; survives reset | Write `0x0` to `0x40120158` via the RISC-V core |
 | E2 | `clang` invoked with `-mthumb` | CMake Tools configured with a host kit; CMake caches compiler paths permanently | Delete `build/` entirely — "Clean CMake" leaves `CMakeCache.txt` |
 | E3 | GDB lands in `isr_hardfault` | Halting a running target and detaching leaves it wedged | `monitor reset init` before `continue` |

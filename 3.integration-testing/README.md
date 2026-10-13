@@ -5,14 +5,14 @@ following the **V-model**. This level tests against the architectural design:
 the question is not whether each unit works — that was established at unit level
 — but whether the interfaces between them are correct.
 
-Unit-level verification is in [`../unit_testing/`](../unit_testing/) and is a
+Unit-level verification is in [`../2.unit-testing/`](../2.unit-testing/) and is a
 precondition for everything here. Every subsystem combined below carries a
 recorded PASS at unit level.
 
 ## Test environment
 
 | Item | Detail |
-| --- | --- |
+|---|---|
 | Target | Raspberry Pi Pico 2 W — RP2350 rev 2, Cortex-M33, 4 MiB W25Q32 flash |
 | Radio | CYW43439 — WiFi 2.4 GHz and Bluetooth |
 | Debug probe | Raspberry Pi Debug Probe (CMSIS-DAP), firmware 1.0.1 |
@@ -32,7 +32,7 @@ response — that is, that four separately-verified subsystems compose correctly
 ### Units integrated
 
 | Unit | Verified at | Role here |
-| --- | --- | --- |
+|---|---|---|
 | WiFi + lwIP | UT-3 | network attachment, DHCP address |
 | ADC | UT-2 | temperature sampled per request |
 | GPIO via CYW43 | UT-1 | heartbeat LED |
@@ -45,7 +45,7 @@ is a seam between two components, and each can fail while both sides are
 individually correct.
 
 | # | Interface | Between | Failure mode if wrong |
-| --- | --- | --- | --- |
+|---|---|---|---|
 | I1 | DHCP address → server bind | WiFi stack → TCP listener | server binds before an address exists; unreachable |
 | I2 | ADC sample → HTTP body | ADC driver → response builder | stale or garbled temperature in the page |
 | I3 | lwIP background IRQ → TCP callbacks | CYW43 driver → application | callbacks never fire; connections hang |
@@ -78,7 +78,7 @@ Browser — the page renders with live values:
 
 Independent fetch with `curl` from a host on the same network:
 
-```txt
+```
 $ curl -D - http://172.20.10.11/
 
 HTTP/1.1 200 OK
@@ -91,7 +91,7 @@ Body measured **exactly 991 bytes** against the declared 991.
 
 Content of that response:
 
-```txt
+```
 25.73 degC
 IP address        172.20.10.11
 Uptime            0 h 1 m 19 s
@@ -103,7 +103,7 @@ WiFi              CYW43439
 Request counter read from the target afterwards, having advanced further
 through the page's own 5 s auto-refresh:
 
-```txt
+```
 (gdb) print request_count
 $1 = 29
 ```
@@ -115,7 +115,7 @@ See [webserver/README.md](webserver/README.md).
 ### Interface results
 
 | # | Interface | Evidence | Result |
-| --- | --- | --- | --- |
+|---|---|---|---|
 | I1 | DHCP → bind | server reachable at the DHCP-assigned 172.20.10.11 | PASS |
 | I2 | ADC → HTTP body | 25.73 degC in the response, consistent with UT-2 | PASS |
 | I3 | lwIP IRQ → callbacks | 29 requests served without intervention from `main()` | PASS |
@@ -147,7 +147,7 @@ path — the conversion is identical code in both projects.
 ## Summary
 
 | ID | Project | Subsystems integrated | Key measurement | Verdict |
-| --- | --- | --- | --- | --- |
+|---|---|---|---|---|
 | IT-1 | `webserver` | WiFi + lwIP + TCP + ADC + HTTP | 200 OK, 991/991 bytes, 29 requests | PASS |
 
 The integrated binary is only ~9 KB larger than the WiFi unit alone: the TCP
@@ -160,12 +160,12 @@ the CYW43439 firmware blob and lwIP, which are already present.
 (`memp_memory_PBUF_POOL_base`, 36,771 bytes), set by `PBUF_POOL_SIZE` in
 `lwipopts.h`. Integration therefore adds almost no RAM here: the pool was
 already reserved by the WiFi unit. See
-[`../unit_testing/README.md`](../unit_testing/README.md) for the full breakdown.
+[`../2.unit-testing/README.md`](../2.unit-testing/README.md) for the full breakdown.
 
 ## Defects found during integration verification
 
 | # | Defect | Root cause | Resolution |
-| --- | --- | --- | --- |
+|---|---|---|---|
 | 1 | Board unreachable from the test client | Client and board were on different networks — a device on a phone hotspot is not routable from a laptop on another WiFi network | Join the test client to the same network |
 | 2 | No DHCP address (`ip_addr = 0x0`) | Access point was not running | Start the access point; re-verify before testing |
 

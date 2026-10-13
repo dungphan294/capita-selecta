@@ -83,7 +83,7 @@ room produces hundreds of reports per minute.
 ## Hardware
 
 | Item | Detail |
-| --- | --- |
+|---|---|
 | Board | Pico 2 W — RP2350 + CYW43439 (WiFi **and** Bluetooth) |
 | Bluetooth | BLE and Classic, via BTstack; shares the SPI bus with WiFi |
 | Probe | Raspberry Pi Debug Probe — `D` → debug header, `U` → GP0/GP1 |
@@ -108,7 +108,7 @@ rasp/bluetooth/
 Same as any Pico 2 W project:
 
 | Setting | Value |
-| --- | --- |
+|---|---|
 | **Board type** | **Pico 2 W** — plain "Pico 2" has no radio at all |
 | Architecture | Arm (leave the RISC-V box unchecked) |
 | **Stdio** | **Console over UART** — matches the probe's `U` connector |
@@ -129,7 +129,7 @@ target_include_directories(bluetooth PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 Choosing the right BTstack libraries:
 
 | Library | Use |
-| --- | --- |
+|---|---|
 | **`pico_btstack_ble`** | **Bluetooth Low Energy — use this** |
 | `pico_btstack_classic` | Classic Bluetooth (A2DP, SPP, HFP) |
 | `pico_btstack_cyw43` | **required** — the HCI transport to the chip |
@@ -148,7 +148,7 @@ first BTstack include.
 Key entries in [btstack_config.h](btstack_config.h):
 
 | Define | Why |
-| --- | --- |
+|---|---|
 | `ENABLE_LE_CENTRAL` | we scan for peripherals. An advertiser needs `ENABLE_LE_PERIPHERAL` |
 | `MAX_NR_CONTROLLER_ACL_BUFFERS 3` | keeps the stack from overrunning the CYW43 shared SPI bus |
 | `ENABLE_HCI_CONTROLLER_TO_HOST_FLOW_CONTROL` | same reason — the bus is shared with WiFi |
@@ -212,7 +212,7 @@ From the IDE: **Compile Project**, then **Flash Project (SWD)**.
 From the terminal:
 
 ```bash
-cd /1.unit-testing/bluetooth
+cd 2.unit-testing/bluetooth
 
 ~/.pico-sdk/cmake/v4.3.4/bin/cmake -B build -G Ninja \
   -DCMAKE_BUILD_TYPE=Debug -DPICO_BOARD=pico2_w -DPICO_PLATFORM=rp2350-arm-s .
@@ -231,7 +231,7 @@ cd /1.unit-testing/bluetooth
 **Panel → Serial Monitor:**
 
 | Setting | Value |
-| --- | --- |
+|---|---|
 | Port | `/dev/tty.usbmodem114202 - Raspberry Pi` |
 | Baud rate | `115200` |
 | Line ending | `None` |
@@ -272,7 +272,7 @@ console shows.
 ## Troubleshooting
 
 | Symptom | Cause and fix |
-| --- | --- |
+|---|---|
 | `btstack_config.h: No such file` | supply the file; BTstack has no defaults |
 | `undefined reference to hci_power_control` | missing `pico_btstack_ble` |
 | `undefined reference to hci_transport_cyw43_instance` | missing `pico_btstack_cyw43` |
@@ -324,7 +324,7 @@ me" mode. `0x07` advertises on all three primary channels.
 
 Verify from the debugger that the payload is well formed:
 
-```txt
+```
 (gdb) print adv_data
 $1 = "\002\001\006\a\tPico2W"
 ```
@@ -341,7 +341,7 @@ filtered out.
 Use a BLE scanner app instead:
 
 | App | Notes |
-| --- | --- |
+|---|---|
 | **nRF Connect** (Nordic) | free; shows raw advertising data |
 | **LightBlue** (Punch Through) | free; simpler |
 

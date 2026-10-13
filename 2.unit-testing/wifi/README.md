@@ -10,7 +10,7 @@ Debug Probe. Everything below was verified on real hardware.
 
 ![Serial Monitor showing a successful connection](docs/images/serial-monitor-connected.png)
 
-```txt
+```
 Starting Wi-Fi...
 Version: 7.95.49 (2271bb6 CY) CRC: b7a28ef3 Date: Mon 2021-11-29 22:50:27 PST ...
 cyw43 loaded ok, mac 98:fe:54:xx:xx:xx
@@ -31,7 +31,7 @@ The `Version:`/`mac`/`API:` banner and the `connect status:` lines come from the
 CYW43 driver itself, not from `wifi.c`. They are a useful progress indicator:
 
 | Line | Meaning |
-| --- | --- |
+|---|---|
 | `cyw43 loaded ok` | 225 KB of WiFi firmware uploaded to the CYW43439 over SPI |
 | `connect status: joining` | association with the access point started |
 | `connect status: no ip` | associated, waiting on DHCP |
@@ -40,7 +40,7 @@ CYW43 driver itself, not from `wifi.c`. They are a useful progress indicator:
 ## Hardware
 
 | Item | Detail |
-| --- | --- |
+|---|---|
 | Board | Pico 2 W — RP2350, CYW43439 WiFi/BT |
 | Radio | **2.4 GHz only** — no 5 GHz support |
 | Probe | Raspberry Pi Debug Probe (CMSIS-DAP), `D` → debug header, `U` → GP0/GP1 |
@@ -50,7 +50,7 @@ CYW43 driver itself, not from `wifi.c`. They are a useful progress indicator:
 
 ![Project files](docs/images/project-tree.png)
 
-```txt
+```
 rasp/wifi/
 ├── CMakeLists.txt              build definition
 ├── wifi.c                      the application
@@ -69,7 +69,7 @@ rasp/wifi/
 **Pico sidebar → New C/C++ Project.**
 
 | Field | Value | Why |
-| --- | --- | --- |
+|---|---|---|
 | Name | `wifi` | |
 | **Board type** | **Pico 2 W** | **not "Pico 2"** — that board has no WiFi chip at all |
 | RISC-V checkbox | unchecked | Arm has better debug tooling |
@@ -98,7 +98,7 @@ pico_enable_stdio_usb(wifi 0)
 Choosing the right cyw43 variant:
 
 | Library | Use |
-| --- | --- |
+|---|---|
 | `..._none` | driver only, no TCP/IP — enough to reach the LED |
 | `..._lwip_poll` | networking, you call `cyw43_arch_poll()` yourself |
 | **`..._lwip_threadsafe_background`** | **networking on a background interrupt — use this** |
@@ -175,7 +175,7 @@ Project (USB)" — that is the picotool route and needs the board in BOOTSEL mod
 From the terminal:
 
 ```bash
-cd /1.unit-testing/wifi
+cd 2.unit-testing/wifi
 
 # configure (only needed after changing board/architecture, or to recover)
 ~/.pico-sdk/cmake/v4.3.4/bin/cmake -B build -G Ninja \
@@ -214,7 +214,7 @@ for e in d:
 **Panel → Serial Monitor**, then:
 
 | Setting | Value |
-| --- | --- |
+|---|---|
 | Port | `/dev/tty.usbmodem114202 - Raspberry Pi` |
 | Baud rate | `115200` |
 | Line ending | `None` |
@@ -247,7 +247,7 @@ usually means something holds the `tty.` node.
 ## Troubleshooting
 
 | Symptom | Cause and fix |
-| --- | --- |
+|---|---|
 | `fatal error: lwipopts.h: No such file` | no lwIP config — add `lwipopts.h` |
 | `pico/cyw43_arch.h` not found | `PICO_BOARD` is `pico2`, not `pico2_w` |
 | `Failed to connect to Wi-Fi: -2` | timeout — see below |

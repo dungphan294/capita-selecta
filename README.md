@@ -82,7 +82,7 @@ Li-Fi is not positioned as a Wi-Fi replacement — its need for a clear light pa
 ## Key Terms
 
 | Term | Meaning |
-| --- | --- |
+|---|---|
 | Li-Fi | Sends data through light using a LED (transmitter) and photodiode (receiver) |
 | Wi-Fi | Wireless method sending data via radio waves, commonly used for internet access |
 | BLE | Bluetooth Low Energy — short-range, low-power radio communication |
@@ -92,7 +92,7 @@ Li-Fi is not positioned as a Wi-Fi replacement — its need for a clear light pa
 | BER | Bit Error Rate — proportion of bits received incorrectly |
 | INA219 | Sensor chip used to measure voltage/current (power use) |
 
-See the full [Project Idea document](document/%5B546821-%20Van%20Dung%20Phan%5D%20Capita%20Selecta%20-%20Project%20Idea.pdf) for the complete assignment description, argumentation, component list, and hour breakdown.
+See the full [Project Idea document](1.document/%5B546821-%20Van%20Dung%20Phan%5D%20Capita%20Selecta%20-%20Project%20Idea.pdf) for the complete assignment description, argumentation, component list, and hour breakdown.
 
 ## Project Details
 
